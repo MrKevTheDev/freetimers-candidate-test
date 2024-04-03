@@ -1,0 +1,75 @@
+version: '3.1'
+networks:
+  freetimers:
+    driver: bridge
+volumes:
+  docker:
+    driver: local
+  meilisearch:
+    driver: local
+  mysql:
+    driver: local
+  src:
+    driver: local
+services:
+  site:
+    image: nginx:stable-alpine
+    container_name: freetimers_library_nginx
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    ports:
+      - '${APP_PORT:-80}:80'
+    environment:
+      WWWUSER: '${WWWUSER}'
+      LARAVEL_SAIL: 1
+      XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
+      XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
+    volumes:
+      - ./:/var/www/html
+      - ./docker/cofigs/conf.d/:/etc/nginx/conf.d/
+      - ./docker/cofigs/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - php
+      - mysql
+    networks:
+      - freetimers
+  php:
+    build:
+      context: .
+      dockerfile: docker/php.dockerfile
+    container_name: freetimers_php
+    volumes:
+      - ./:/var/www/html
+    networks:
+      - freetimers
+  composer:
+    build:
+      context: .
+      dockerfile: docker/php.dockerfile
+    container_name: freetimers_composer
+    volumes:
+      - ./:/var/www/html
+    working_dir: /var/www/html
+    entrypoint: [ 'composer' ]
+    networks:
+      - freetimers
+  mysql:
+    container_name: freetimers_mysql
+    image: 'mysql/mysql-server:8.0'
+    ports:
+      - '${FORWARD_DB_PORT:-3306}:3306'
+    environment:
+      MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
+      MYSQL_ROOT_HOST: "%"
+      MYSQL_DATABASE: '${DB_DATABASE}'
+      MYSQL_USER: '${DB_USERNAME}'
+      MYSQL_PASSWORD: '${DB_PASSWORD}'
+      MYSQL_ALLOW_EMPTY_PASSWORD: 1
+    volumes:
+     - ./mysql:/var/lib/mysql
+    networks:
+      - freetimers
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-p${DB_PASSWORD}"]
+      retries: 3
+      timeout: 5s

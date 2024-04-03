@@ -1,0 +1,2 @@
+* * * * * cd /var/www/html && php artisan schedule:run >> /dev/null 2>&1
+* * * * * cd /home/app/fantise && docker-compose run --rm artisan schedule:run >> /home/app/fantise/src/storage/logs/cron.log
